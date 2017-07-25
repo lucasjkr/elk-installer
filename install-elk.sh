@@ -1,5 +1,16 @@
 #/bin/bash
 
+# This script installs a relatively old ELK stack on Ubuntu Server 16.04 consisting of 
+# the following:
+#
+# Kibana 4.5.4
+# Logstash 2.3.4
+# ElasticSearch 2.4.5
+# Java8
+#
+# It's inspired by the instructions published by Digital Ocean here:
+# https://www.digitalocean.com/community/tutorials/how-to-install-elasticsearch-logstash-and-kibana-elk-stack-on-ubuntu-14-04
+
 function logStep(){
     echo $(date +%H:%M:%S) ": " $1 >> install.log
 }
@@ -228,7 +239,7 @@ output {
 }
 EOT
 /opt/logstash/bin/logstash --configtest -f /etc/logstash/conf.d/30-elasticsearch-output.conf
-logStep "Created and verified logstash's elasticsearch output"
+logStep "Created and verified logstash's elasticsearch output"q
 
 ## RESTART & ENABLE LOGSTASH
 systemctl restart logstash
@@ -247,3 +258,4 @@ logStep "Loaded Kibana dashboards"
 cd ~
 curl -O https://gist.githubusercontent.com/thisismitch/3429023e8438cc25b86c/raw/d8c479e2a1adcea8b1fe86570e42abab0f10f364/filebeat-index-template.json
 curl -XPUT 'http://localhost:9200/_template/filebeat?pretty' -d@filebeat-index-template.json
+logStep "Filebeat Template installed."
