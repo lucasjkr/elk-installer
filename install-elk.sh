@@ -39,11 +39,14 @@ apt-get update
 apt-get update
 apt-get dist-upprade
 
-apt-get -y install software-properties-common
-apt-get -y install wget
-apt-get -y install unzip
-apt-get -y install git
-apt-get -y install apt-transport-https
+# For installing software
+apt-get -y install software-properties-common apt-transport-https
+
+# For retrieving remote files
+apt-get -y install wget zip unzip git
+
+# SSL capabilities (SSL key for Logstash, etc)
+apt-get -y install openssl
 
 ###########################################################
 #                                                         #
