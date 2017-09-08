@@ -5,14 +5,25 @@
 # System specific variables                               #
 #                                                         #
 ###########################################################
-### These don't work yet - the intention is to personalize
-### the installation, so this is a TODO item!
-# NGINX_USER=kibana
-# NGINX_PASS=kibana
-# NGINX_HASH=PASSWD=openssl passwd -apr1 $NGINX_PASS
-# HOST_NAME="s01.elasticstack.local"
-# LOCAL_IP=$(echo `ifconfig enp0s3 2>/dev/null|awk '/inet addr:/ {print $2}'|sed 's/addr://'`)
- 
+# TODO: Validation!
+# Have each item entered twice to insure the user entered the correct data
+
+echo "Enter your servers hostname (i.e. host.example.com):"
+read ELKHOST
+
+echo "Enter admin name"
+read ADMINUSER
+
+echo "Enter admin password"
+read ADMINPASS
+
+# Create .htpasswd file to authenticate against in later steps
+mkdir -p /etc/nginx/ 
+echo -n "$ADMINUSER:" >> /etc/nginx/nginx.users
+openssl passwd -apr1 $ADMINPASS >> /etc/nginx/nginx.users
+
+# TODO: Ask for Elasticsearch Memory allocations
+
 ###########################################################
 #                                                         #
 # Setup for installation                                  #
@@ -28,6 +39,7 @@ apt-get update
 apt-get update
 apt-get dist-upprade
 
+apt-get -y install software-properties-common
 apt-get -y install wget
 apt-get -y install unzip
 apt-get -y install git
@@ -77,6 +89,8 @@ apt-get update
 #                                                         #
 ###########################################################
 apt-get -y install elasticsearch
+/bin/systemctl daemon-reload
+/bin/systemctl enable elasticsearch.service
 
 ### BACKUP AND UPDATE elasticsearch.yml
 cp /etc/elasticsearch/elasticsearch.yml \
@@ -86,17 +100,35 @@ sed -i 's/#network.host: 192.168.0.1/network.host: localhost/g' \
   /etc/elasticsearch/elasticsearch.yml
 sed -i 's/#cluster.name: my-application/cluster.name: elasticstack/g' \
   /etc/elasticsearch/elasticsearch.yml
+sed -i 's/#node.name: node-1/#node.name: node-1\nnode.name: master/g' \
+  /etc/elasticsearch/elasticsearch.yml
+
+
+# IMPORTANT: SET ELASTICSEARCH LOG AND DATA DIRECTORIES
+mkdir -p /data/elastic/data
+mkdir -p /data/elastic/logs
+
+chown elasticsearch /data/elastic/data
+chgrp elasticsearch /data/elastic/data
+chmod 770 /data/elastic/data
+
+chgrp elasticsearch /data/elastic/logs
+chgrp elasticsearch /data/elastic/logs
+chmod 770 /data/elastic/logs
+
+sed -i 's/#path.data: \/path\/to\/data/\npath.data: \/data\/elastic\/data/g' \
+  /etc/elasticsearch/elasticsearch.yml
+sed -i 's/#path.data: \/path\/to\/logs/\npath.data: \/data\/elastic\/logs/g' \
+  /etc/elasticsearch/elasticsearch.yml
 
 # Optional: reduce elastic's memory footprint
+# Per elastic's documentation, both min and max should be the same size
 cp /etc/elasticsearch/jvm.options \
   /etc/elasticsearch/jvm.options.original
-sed -i 's/-Xms2g/-Xms512m/g' \
+sed -i 's/-Xms2g/-Xms300m/g' \
   /etc/elasticsearch/jvm.options
-sed -i 's/-Xmx2g/-Xms512m/g' \
+sed -i 's/-Xmx2g/-Xmx300m/g' \
   /etc/elasticsearch/jvm.options
-
-update-rc.d elasticsearch defaults 95 10
-service elasticsearch stop 
 
 ###########################################################
 #                                                         #
@@ -104,8 +136,14 @@ service elasticsearch stop
 #                                                         #
 ###########################################################
 apt-get -y install kibana
-update-rc.d kibana defaults 95 10
-service kibana stop
+/bin/systemctl daemon-reload
+/bin/systemctl enable kibana.service
+
+cp /etc/kibana/kibana.yml \
+  /etc/kibana/kibana.yml.original
+  
+sed -i 's/#kibana.index: ".kibana"/#kibana.index: ".kibana"\nkibana.index: ".kibana"/g' \
+  /etc/kibana/kibana.yml
 
 ###########################################################
 #                                                         #
@@ -122,7 +160,10 @@ cat <<EOT >> /etc/nginx/sites-available/default
 server {
     listen 80;
  
-    server_name 10.0.0.127;
+    server_name 99.99.99.99;
+ 
+    auth_basic "Restricted Access";
+    auth_basic_user_file /etc/nginx/nginx.users;
  
     location / {
         proxy_pass http://localhost:5601;
@@ -134,16 +175,26 @@ server {
     }
 }
 EOT
-service nginx stop
 
+# CHANGE server_name variable to the one the user chose at the beginning of the script
+sed -i "s|99.99.99.99|$ELKHOST|g" \
+  /etc/nginx/sites-available/default
+  
 ###########################################################
 #                                                         #
 # Logstash installation                                   #
 #                                                         #
 ###########################################################
 apt-get -y install logstash
-service logstash stop
- 
+/bin/systemctl daemon-reload
+/bin/systemctl enable logstash.service
+
+#add the Logstash Beats inputplugin
+/usr/share/logstash/bin/logstash-plugin install logstash-input-beats
+
+#add the Logstash Elasticsearch output plugin
+/usr/share/logstash/bin/logstash-plugin install logstash-output-elasticsearch
+
 # at this point, you can test your logstash installation by issuing the following commands:
 # /usr/share/logstash/bin/logstash -e 'input { stdin { } } output { stdout {} }'
 # (wait for prompt, then enter: 'hello world')
@@ -151,35 +202,14 @@ service logstash stop
 
 ###########################################################
 #                                                         #
-# X-pack for Elasticsearch                                #
-#                                                         #
-###########################################################
-/usr/share/elasticsearch/bin/elasticsearch-plugin install x-pack --batch
-
-###########################################################
-#                                                         #
-# X-pack for Kibana                                       #
-#                                                         #
-###########################################################
-/usr/share/kibana/bin/kibana-plugin install x-pack
-
-###########################################################
-#                                                         #
-# X-pack for Logstash                                     #
-#                                                         #
-###########################################################
-/usr/share/logstash/bin/logstash-plugin install x-pack
-
-###########################################################
-#                                                         #
 # Start Elasticstack Services                             #
 #                                                         #
 ###########################################################
-service nginx start
-service elasticsearch start
-service kibana start
-service nginx start
-service logstash start
+/bin/systemctl daemon-reload
+/bin/systemctl start elasticsearch.service
+/bin/systemctl start kibana.service
+/bin/systemctl start logstash.service
+service nginx restart
 
 # this can take a minute
 
@@ -224,17 +254,17 @@ service logstash start
 # Logstash installation:
 # https://www.elastic.co/guide/en/logstash/5.5/installing-logstash.html
 #
+# Logstash Beats plug-in
+# https://www.elastic.co/guide/en/beats/libbeat/5.5/logstash-installation.html
+#
 # Testing Logstash:
 # https://www.elastic.co/guide/en/logstash/5.5/first-event.html
 #
-# X-Pack for Elasticsearch
-# https://www.elastic.co/guide/en/elasticsearch/reference/5.5/installing-xpack-es.html
+# TODO: Install logstash plugins
 #
-# X-Pack for Kibana
-# https://www.elastic.co/guide/en/kibana/5.5/installing-xpack-kb.html
+# Installing Logstash Plugins
+# https://www.elastic.co/guide/en/logstash/current/working-with-plugins.html
 #
-# X-Pack for Logstash
-# https://www.elastic.co/guide/en/logstash/5.5/installing-logstash.html
-#
-#
+# List all plugins:
+# /usr/share/logstash/bin/logstash-plugin list
 ############################################################
