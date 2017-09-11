@@ -1,0 +1,19 @@
+# This is a comment. You should use comments to describe
+# parts of your configuration.
+
+input {
+  beats {
+    port => 5044
+  }
+}
+
+filter {
+
+}
+
+output {
+  elasticsearch {
+    hosts   => ["127.0.0.1:9200"]
+    index   => "beats-%{+YYYY.MM.dd}"
+  }
+}
