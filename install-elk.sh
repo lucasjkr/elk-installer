@@ -1,5 +1,7 @@
 #/bin/bash
-
+#
+# Recommended: run `apt-get dist-upprade` before proceeding
+#
 ###########################################################
 #                                                         #
 # System specific variables                               #
@@ -28,11 +30,8 @@ read ADMINPASS
 ### Some of these might already be installed on your system
 ### But it doesn't hurt to make sure
 
-apt-get update
-
 ### Optional and recommended, upgrade all packages:
 apt-get update
-apt-get dist-upprade
 
 # For installing software
 apt-get -y install software-properties-common apt-transport-https
@@ -47,6 +46,27 @@ apt-get -y install openssl
 mkdir -p /etc/nginx/ 
 echo -n "$ADMINUSER:" >> /etc/nginx/nginx.users
 openssl passwd -apr1 $ADMINPASS >> /etc/nginx/nginx.users
+
+
+###########################################################
+#                                                         #
+# Generate OpenSSL keys                                   #
+#                                                         #
+###########################################################
+mkdir -p /config/pki/tls/certs
+mkdir -p /config/pki/tls/private
+
+# Key and cert for logstash service
+openssl req -x509 -batch -nodes -days 3650 -newkey rsa:2048 -keyout \
+  /config/pki/tls/private/logstash-forwarder.key -out \
+  /config/pki/tls/certs/logstash-forwarder.crt \ 
+  -subj "/CN=$FQDN/"
+
+# Key and cert for https service
+openssl req -x509 -batch -nodes -days 3650 -newkey rsa:2048 -keyout \
+  /config/pki/tls/private/nginx-proxy.key -out \
+  /config/pki/tls/certs/nginx-proxy.crt \ 
+  -subj "/CN=$FQDN/"
 
 ###########################################################
 #                                                         #
