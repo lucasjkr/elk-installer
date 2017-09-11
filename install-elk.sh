@@ -17,11 +17,6 @@ read ADMINUSER
 echo "Enter admin password"
 read ADMINPASS
 
-# Create .htpasswd file to authenticate against in later steps
-mkdir -p /etc/nginx/ 
-echo -n "$ADMINUSER:" >> /etc/nginx/nginx.users
-openssl passwd -apr1 $ADMINPASS >> /etc/nginx/nginx.users
-
 # TODO: Ask for Elasticsearch Memory allocations
 
 ###########################################################
@@ -47,6 +42,11 @@ apt-get -y install wget zip unzip git
 
 # SSL capabilities (SSL key for Logstash, etc)
 apt-get -y install openssl
+
+# Create .htpasswd file to authenticate against in later steps
+mkdir -p /etc/nginx/ 
+echo -n "$ADMINUSER:" >> /etc/nginx/nginx.users
+openssl passwd -apr1 $ADMINPASS >> /etc/nginx/nginx.users
 
 ###########################################################
 #                                                         #
@@ -115,7 +115,7 @@ chown elasticsearch /data/elastic/data
 chgrp elasticsearch /data/elastic/data
 chmod 770 /data/elastic/data
 
-chgrp elasticsearch /data/elastic/logs
+chown elasticsearch /data/elastic/logs
 chgrp elasticsearch /data/elastic/logs
 chmod 770 /data/elastic/logs
 
@@ -188,6 +188,8 @@ sed -i "s|99.99.99.99|$ELKHOST|g" \
 # Logstash installation                                   #
 #                                                         #
 ###########################################################
+# Install Logstash
+
 apt-get -y install logstash
 /bin/systemctl daemon-reload
 /bin/systemctl enable logstash.service
@@ -197,6 +199,33 @@ apt-get -y install logstash
 
 #add the Logstash Elasticsearch output plugin
 /usr/share/logstash/bin/logstash-plugin install logstash-output-elasticsearch
+
+
+# IMPORTANT: CREATE DATA DIRECTORIES FOR LOGSTASH
+# By default, installer creates directories that logstash can not write to
+# We're going to put these directories in /data to centralize the data more
+mkdir -p /data/logstash/queue
+mkdir -p /data/logstash/dead_letter_queue
+
+chown logstash /data/logstash/queue
+chgrp logstash /data/logstash/queue
+chmod 770 /data/logstash/queue
+
+chown logstash /data/logstash/dead_letter_queue
+chgrp logstash /data/logstash/dead_letter_queue
+chmod 770 /data/logstash/dead_letter_queue
+
+### BACKUP AND UPDATE logstash.yml
+cp /etc/logstash/logstash.yml \
+  /etc/logstash/logstash.yml.original
+
+# Change logstash data dir
+
+sed -i 's|# node.name: test|# node.name: test \nnode.name: logstash-local|g' \
+  /etc/logstash/logstash.yml
+
+sed -i 's|# path.data: /var/lib/logstash|# path.data: /var/lib/logstash\npath.data: /data/logstash|g' \
+  /etc/logstash/logstash.yml
 
 # at this point, you can test your logstash installation by issuing the following commands:
 # /usr/share/logstash/bin/logstash -e 'input { stdin { } } output { stdout {} }'
