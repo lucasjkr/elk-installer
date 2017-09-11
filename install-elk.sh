@@ -177,31 +177,8 @@ apt-get -y install nginx
 
 mv /etc/nginx/sites-available/default \
   /etc/nginx/sites-available/default.original
-
-##TODO: insert real FQDN or IP Address into server name
-cat <<EOT >> /etc/nginx/sites-available/default
-server {
-    listen 80;
- 
-    server_name 99.99.99.99;
- 
-    auth_basic "Restricted Access";
-    auth_basic_user_file /etc/nginx/nginx.users;
- 
-    location / {
-        proxy_pass http://localhost:5601;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_cache_bypass \$http_upgrade;
-    }
-}
-EOT
-
-# CHANGE server_name variable to the one the user chose at the beginning of the script
-sed -i "s|99.99.99.99|$ELKHOST|g" \
-  /etc/nginx/sites-available/default
+  
+wget https://raw.githubusercontent.com/lucasjkr/elk-installer/master/extra-files/nginx-conf.txt > /etc/nginx/default
   
 ###########################################################
 #                                                         #
