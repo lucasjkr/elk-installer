@@ -152,9 +152,9 @@ chown elasticsearch /data/elastic/logs
 chgrp elasticsearch /data/elastic/logs
 chmod 770 /data/elastic/logs
 
-sed -i 's/#path.data: \/path\/to\/data/\npath.data: \/data\/elastic\/data/g' \
+sed -i 's|#path.data: \/path\/to\/data|\npath.data: \/data\/elastic\/data|g' \
   /etc/elasticsearch/elasticsearch.yml
-sed -i 's/#path.data: \/path\/to\/logs/\npath.data: \/data\/elastic\/logs/g' \
+sed -i 's|#path.data: \/path\/to\/logs|\npath.data: \/data\/elastic\/logs|g' \
   /etc/elasticsearch/elasticsearch.yml
 
 # Optional: reduce elastic's memory footprint
