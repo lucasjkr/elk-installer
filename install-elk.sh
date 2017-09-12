@@ -132,11 +132,11 @@ apt-get -y install elasticsearch
 cp /etc/elasticsearch/elasticsearch.yml \
   /etc/elasticsearch/elasticsearch.yml.original
 
-sed -i 's/#network.host: 192.168.0.1/network.host: localhost/g' \
+sed -i 's|#network.host: 192.168.0.1|network.host: localhost|g' \
   /etc/elasticsearch/elasticsearch.yml
-sed -i 's/#cluster.name: my-application/cluster.name: elasticstack/g' \
+sed -i 's|#cluster.name: my-application|cluster.name: elasticstack|g' \
   /etc/elasticsearch/elasticsearch.yml
-sed -i 's/#node.name: node-1/#node.name: node-1\nnode.name: master/g' \
+sed -i 's|#node.name: node-1|#node.name: node-1\nnode.name: master|g' \
   /etc/elasticsearch/elasticsearch.yml
 
 
@@ -247,9 +247,8 @@ sed -i 's|# path.data: /var/lib/logstash|# path.data: /var/lib/logstash\npath.da
   /etc/logstash/logstash.yml
 
 # Get sample logstash config file
-wget --directory-prefix=/tmp \
-  https://raw.githubusercontent.com/lucasjkr/elk-installer/master/extra-files/logstash-conf.txt
-mv /tmp/logstash-conf.txt /etc/logstash/logstash.conf
+wget --directory-prefix=/etc/logstash/conf.d \
+  https://raw.githubusercontent.com/lucasjkr/elk-installer/master/extra-files/logstash.conf
 
 # at this point, you can test your logstash installation by issuing the following commands:
 # /usr/share/logstash/bin/logstash -e 'input { stdin { } } output { stdout {} }'
