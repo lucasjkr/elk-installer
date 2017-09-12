@@ -17,7 +17,7 @@ fi
 # Have each item entered twice to insure the user entered the correct data
 
 echo "Enter your servers hostname (i.e. host.example.com):"
-read ELKHOST
+read FQDN
 
 echo "Enter admin name"
 read ADMINUSER
