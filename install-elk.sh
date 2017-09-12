@@ -2,6 +2,12 @@
 #
 # Recommended: run `apt-get dist-upprade` before proceeding
 #
+# Check to see if root user is running the program
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root"
+  exit
+fi
+
 ###########################################################
 #                                                         #
 # System specific variables                               #
