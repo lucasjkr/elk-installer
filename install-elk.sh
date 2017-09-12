@@ -59,14 +59,21 @@ mkdir -p /config/pki/tls/private
 # Key and cert for logstash service
 openssl req -x509 -batch -nodes -days 3650 -newkey rsa:2048 -keyout \
   /config/pki/tls/private/logstash-forwarder.key -out \
-  /config/pki/tls/certs/logstash-forwarder.crt \ 
+  /config/pki/tls/certs/logstash-forwarder.crt \
   -subj "/CN=$FQDN/"
 
 # Key and cert for https service
 openssl req -x509 -batch -nodes -days 3650 -newkey rsa:2048 -keyout \
   /config/pki/tls/private/nginx-proxy.key -out \
-  /config/pki/tls/certs/nginx-proxy.crt \ 
+  /config/pki/tls/certs/nginx-proxy.crt \
   -subj "/CN=$FQDN/"
+
+# Set SSL keys and certs to read-only by root
+chmod 400 /config/pki/tls/private/nginx-proxy.key
+chmod 400 /config/pki/tls/certs/nginx-proxy.crt 
+
+chmod 400 /config/pki/tls/private/logstash-forwarder.key
+chmod 400 /config/pki/tls/certs/logstash-forwarder.crt 
 
 ###########################################################
 #                                                         #
@@ -148,9 +155,9 @@ sed -i 's/#path.data: \/path\/to\/logs/\npath.data: \/data\/elastic\/logs/g' \
 # Per elastic's documentation, both min and max should be the same size
 cp /etc/elasticsearch/jvm.options \
   /etc/elasticsearch/jvm.options.original
-sed -i 's/-Xms2g/-Xms300m/g' \
+sed -i 's|-Xms2g|-Xms300m|g' \
   /etc/elasticsearch/jvm.options
-sed -i 's/-Xmx2g/-Xmx300m/g' \
+sed -i 's|-Xmx2g|-Xmx300m|g' \
   /etc/elasticsearch/jvm.options
 
 ###########################################################
@@ -165,7 +172,10 @@ apt-get -y install kibana
 cp /etc/kibana/kibana.yml \
   /etc/kibana/kibana.yml.original
   
-sed -i 's/#kibana.index: ".kibana"/#kibana.index: ".kibana"\nkibana.index: ".kibana"/g' \
+sed -i 's|#kibana.index: ".kibana"|#kibana.index: ".kibana"\nkibana.index: ".kibana"|g' \
+  /etc/kibana/kibana.yml
+  
+sed -i 's|#server.host: "localhost"|#server.host: "localhost"\nserver.host: 127.0.0.1|g' \
   /etc/kibana/kibana.yml
 
 ###########################################################
@@ -177,8 +187,15 @@ apt-get -y install nginx
 
 mv /etc/nginx/sites-available/default \
   /etc/nginx/sites-available/default.original
-  
-wget https://raw.githubusercontent.com/lucasjkr/elk-installer/master/extra-files/nginx-conf.txt > /etc/nginx/default
+
+rm /etc/nginx/sites-enabled/default 
+
+wget --directory-prefix=/tmp \
+  https://raw.githubusercontent.com/lucasjkr/elk-installer/master/extra-files/nginx-conf.txt
+
+mv /tmp/nginx-conf.txt /etc/nginx/sites-available/default
+
+ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
   
 ###########################################################
 #                                                         #
@@ -196,7 +213,6 @@ apt-get -y install logstash
 
 #add the Logstash Elasticsearch output plugin
 /usr/share/logstash/bin/logstash-plugin install logstash-output-elasticsearch
-
 
 # IMPORTANT: CREATE DATA DIRECTORIES FOR LOGSTASH
 # By default, installer creates directories that logstash can not write to
@@ -223,6 +239,11 @@ sed -i 's|# node.name: test|# node.name: test \nnode.name: logstash-local|g' \
 
 sed -i 's|# path.data: /var/lib/logstash|# path.data: /var/lib/logstash\npath.data: /data/logstash|g' \
   /etc/logstash/logstash.yml
+
+# Get sample logstash config file
+wget --directory-prefix=/tmp \
+  https://raw.githubusercontent.com/lucasjkr/elk-installer/master/extra-files/logstash-conf.txt
+mv /tmp/logstash-conf.txt /etc/logstash/logstash.conf
 
 # at this point, you can test your logstash installation by issuing the following commands:
 # /usr/share/logstash/bin/logstash -e 'input { stdin { } } output { stdout {} }'
